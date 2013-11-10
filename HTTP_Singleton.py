@@ -37,8 +37,7 @@ class HTTP_Singleton(object):
         if not self._instance:
             self._instance = super(HTTP_Singleton, self).__new__(self, *args, **kwargs)
             
-            certificates_file = ca_certs=os.path.join(os.path.dirname(__file__), 'certs','Guildwars2_Certificats.txt')
-            cache_directory = os.path.join(os.environ['APPDATA'], "GuildWars2TradingPost","HTTPCache")       
+            certificates_file = ca_certs=os.path.join(os.path.dirname(__file__), 'certs','Guildwars2_Certificats.txt')       
             self._client = httplib2.Http(ca_certs=certificates_file)
             self._session_id = None
             self._session_valid_thru = datetime.datetime.now(GMT_timezone())

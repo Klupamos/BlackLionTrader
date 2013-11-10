@@ -174,6 +174,7 @@ class BlackLionTrader(threading.Thread):
     def profitable_crafting_items(self):
         self.profitable_items = {'Errors':[]}
         self.locks = {'Errors_lock':threading.Lock()}
+        loop_count = 0
 
         for item in self.recipe_items:
             if self.kill:
@@ -189,14 +190,17 @@ class BlackLionTrader(threading.Thread):
                         heapq.heappush( self.profitable_items.setdefault(d, []), cmp_class(item))
                         self.locks.get(d+"_lock").release()
                     
-                        if self.verbosity:
+                        if self.verbosity >= 1:
                             util.STDOUT.write(str(item) + " " + str(item.best_recipe._disciplines) + " Is Profitable \n")
             except:
-                if self.verbosity:
+                if self.verbosity >= 1:
                     util.STDERR.write("Error on item " + str(item.id) + "\n")
                 self.locks.setdefault("Errors_lock", threading.Lock()).acquire(True)
                 self.profitable_items.get('Errors', []).append(cmp_class(item))
                 self.locks.get("Errors_lock").release()
+            loop_count+=1
+            if self.verbosity >= 1:
+                util.STDOUT.write( str(float(loop_count) * 100 / len(self.recipe_items)) + "%\n")
                 
         util.STDOUT.write("Done\n")
         return
