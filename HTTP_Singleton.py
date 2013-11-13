@@ -46,10 +46,11 @@ class HTTP_Singleton(object):
     
     
     def request(self, *args, **kwargs):
-        if datetime.datetime.now(GMT_timezone()) >= self._session_valid_thru:
-            self.authenticate()
-
         verbosity = kwargs.pop('verbosity', 0)
+        if datetime.datetime.now(GMT_timezone()) >= self._session_valid_thru:
+            self.authenticate(verbosity = verbosity)
+
+        
             
         response, content = self._client.request(*args, **kwargs)
 
@@ -91,10 +92,14 @@ class HTTP_Singleton(object):
         return (response, content)
     
     
-    def authenticate(self):
+    def authenticate(self, *args, **kwargs):
         if datetime.datetime.now(GMT_timezone()) < self._session_valid_thru:
             return #old session_id is still valid
-            
+
+        verbosity = kwargs.pop('verbosity', 0)
+        if verbosity >= 1:
+            util.STDERR.write("Authenticating "+str(util.account_email)+"\n")
+        
         # Setup the request
         url = "https://account.guildwars2.com" + "/login"
         data = {'email':util.account_email, 'password':util.account_password}

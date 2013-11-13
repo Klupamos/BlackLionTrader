@@ -142,6 +142,8 @@ class BlackLionTrader(threading.Thread):
             _rating = response_data.get('min_rating','0')
             for d in response_data.get('disciplines', []):
                 _recipe.add_discipline(str(d) +" " + str(_rating))
+            if not _recipe._disciplines:
+                _recipe.add_discipline("Unknown")
             
             self.item[_id].recipes.append(_recipe)
 
@@ -162,8 +164,8 @@ class BlackLionTrader(threading.Thread):
             if not isinstance(other, BlackLionTrader.CostWeightedPrduction):
                 raise NotImplementedError
 
-            lhv = self._item.recipe_cost_per_unit
-            rhv = other._item.recipe_cost_per_unit
+            lhv = self._item.best_recipe.cost_per_unit
+            rhv = other._item.best_recipe.cost_per_unit
             if lhv > rhv:
                 return 1
             elif rhv > lhv:
@@ -184,22 +186,36 @@ class BlackLionTrader(threading.Thread):
             try:
                 item_qty, item_price = item.crafting_profit(verbosity = self.verbosity)
                 if item_price > 0 and item_qty > 0:
-                    disciplines = map(lambda d: d.split(' ')[0], item.recipe_disciplines)
+                    disciplines = map(lambda d: d.split(' ')[0], item.best_recipe._disciplines)
                     for d in disciplines:
                         self.locks.setdefault(d+"_lock", threading.Lock()).acquire(True)
                         heapq.heappush( self.profitable_items.setdefault(d, []), cmp_class(item))
                         self.locks.get(d+"_lock").release()
                     
-                        if self.verbosity >= 1:
-                            util.STDOUT.write(str(item) + " " + str(item.best_recipe._disciplines) + " Is Profitable \n")
-            except:
+                    if self.verbosity >= 1:
+                        util.STDOUT.write("\n"+str(item) +  " Is Profitable \n")
+                elif self.verbosity >= 2:
+                    util.STDOUT.write(str(item) + " Is unProfitable \n")
+                    
+                        
+            except Exception as e:
+                import traceback
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                print "*** print_tb:"
+                traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+                print "*** print_exception:"
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                          limit=2, file=sys.stdout)
+                print "*** print_exc:"
+                traceback.print_exc()
                 if self.verbosity >= 1:
                     util.STDERR.write("Error on item " + str(item.id) + "\n")
+                    util.STDERR.write(str(e) + "\n")
                 self.locks.setdefault("Errors_lock", threading.Lock()).acquire(True)
                 self.profitable_items.get('Errors', []).append(cmp_class(item))
                 self.locks.get("Errors_lock").release()
             loop_count+=1
-            if self.verbosity >= 1:
+            if self.verbosity >= 2:
                 util.STDOUT.write( str(float(loop_count) * 100 / len(self.recipe_items)) + "%\n")
                 
         util.STDOUT.write("Done\n")
@@ -257,7 +273,7 @@ class BlackLionTrader(threading.Thread):
                     util.STDOUT.write(i.detailed_recipe(qty))
                     util.STDOUT.write("Make "+ str(qty) +" for total profit: " + util.gold_repr(profit) + "\n")
                     for k, v in i.get_shoping_list(qty).iteritems():
-                        util.STDOUT.write(str(v) + " x " + str(k))
+                        util.STDOUT.write(str(v).ljust(4) + " x " + str(k.name) + "\n")
                 
             except Exception as e:
                 util.STDERR.write(str(e)+"\n")

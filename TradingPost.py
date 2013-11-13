@@ -64,7 +64,8 @@ class TradingPostRecipe(object):
     def add_discipline(self, discipline):
         self._disciplines.append(discipline)
     
-
+    def cost_per_unit(self):
+        return self.cost / self.serving
 
 
 
@@ -74,7 +75,7 @@ class TradingPostRecipe(object):
 class TradingPostItem(object):
     locations = {'Vendor':1, 'Crafting':2, 'Trading Post':3, }
     listing_timer = datetime.timedelta(minutes=15)
-    
+    default_recipe = TradingPostRecipe()
     
     def __init__(self, id_ = -1, name = None):
         self._id = int(id_)
@@ -84,7 +85,6 @@ class TradingPostItem(object):
         self.buy_orders = []
         self.sell_orders = []
         self.recipes = []
-        self.best_recipe = TradingPostRecipe()
         self.last_listing_update = datetime.datetime(2013, 1, 1)
 
     def __repr__(self):
@@ -119,6 +119,18 @@ class TradingPostItem(object):
     def id(self, value):
         raise ValueError
 
+    @property
+    def best_recipe(self):
+        _recipe = TradingPostItem.default_recipe
+        for this_recipe in self.recipes:
+            if this_recipe.cost < _recipe.cost:
+                _recipe = this_recipe
+        return _recipe 
+
+    @best_recipe.setter
+    def best_recipe(self, value):
+        raise ValueError
+        
     def best_price(self, verbosity=0):
         self.retrieve_listings(verbosity)
         
@@ -127,11 +139,9 @@ class TradingPostItem(object):
             running_best = self.sell_orders[0].value
             self.best_location = TradingPostItem.locations["Trading Post"]
 
-        for _recipe in self.recipes:
-            if _recipe.cost < running_best:
-                self.best_recipe = _recipe
-                running_best = _recipe.cost
-                self.best_location = TradingPostItem.locations["Crafting"]
+        if self.best_recipe.cost < running_best:
+            running_best = self.best_recipe.cost
+            self.best_location = TradingPostItem.locations["Crafting"]
             
         if self.vendor_price < running_best:
             running_best = self.vendor_price
@@ -220,8 +230,6 @@ class TradingPostItem(object):
             # Name    Price @ Locations
             return self.name.ljust(45)+util.gold_repr(self.best_price()).rjust(12) + " @ " + self.best_location_name() + "\n"
 
-        assert self.best_recipe != None
-
         # Name  [Recipe_Disciplies][Recipe_Flags]
         part_str = self.name.ljust(45) + str(self.best_recipe._disciplines) + str(self.best_recipe._flags if self.best_recipe._flags else "") + "\n"
         
@@ -235,7 +243,9 @@ class TradingPostItem(object):
         return part_str
 
     def crafting_profit(self, verbosity=0):
-        break_even_price = (self.best_recipe.cost / self.best_recipe.serving ) / 0.85
+
+        _recipe = self.best_recipe
+        break_even_price = (_recipe.cost / _recipe.serving ) / 0.85
         profit = count = 0
 
         self.retrieve_listings(verbosity=verbosity)
@@ -244,7 +254,7 @@ class TradingPostItem(object):
                 if buyer.value <= break_even_price:
                     break
                 count += buyer.qty
-                profit += buyer.qty*(buyer.value*0.85 - self.best_recipe.cost)
+                profit += buyer.qty*(buyer.value*0.85 - _recipe.cost)
                 
         return count, profit
     
